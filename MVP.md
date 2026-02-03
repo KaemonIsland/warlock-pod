@@ -1,8 +1,8 @@
-# Warlock Pod — MVP build guide (desktop-first podcast webapp)
+# Warlock Pod - MVP build guide (desktop-first podcast webapp)
 
 A Cursor-friendly, end-to-end instruction set to build a working MVP with auth, search, subscribe, episode browsing, a persistent side-player, progress sync, favorites, hide-show, and mobile-friendly UI.
 
-> Theme: pastel robin’s-egg blue.
+> Theme: pastel robin's-egg blue.
 > Stack: Next.js 14 App Router + TypeScript + Tailwind + Supabase (Auth + Postgres) + Podcast Index API.
 > Name: **Warlock Pod**.
 
@@ -15,7 +15,7 @@ A Cursor-friendly, end-to-end instruction set to build a working MVP with auth, 
 * Subscribe and unsubscribe
 * Podcast page with artwork, hosts, description
 * Episodes list with per-podcast search
-* Player with: play, pause, next, previous, skip ±30s, speed, volume
+* Player with: play, pause, next, previous, skip +/-30s, speed, volume
 * Persistent side-player present on every page
 * Progress tracking and resume after refresh
 * Favorite episodes
@@ -35,10 +35,10 @@ npx create-next-app@latest warlock-pod --ts --eslint --src-dir --app --tailwind 
 cd warlock-pod
 
 # 2) Add deps
-pnpm add @supabase/supabase-js zustand zustand-middleware class-variance-authority lucide-react zod date-fns
+pnpm add @supabase/supabase-js zustand class-variance-authority lucide-react zod date-fns
 
 # 3) Dev-only utilities
-pnpm add -D @types/node @types/react @types/react-dom
+pnpm add -D @tailwindcss/line-clamp @types/node @types/react @types/react-dom
 ```
 
 Create a Supabase project. Grab the `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from the dashboard.
@@ -53,6 +53,7 @@ Create a `.env.local` file:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=...
 NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 PODCASTINDEX_API_KEY=...
 PODCASTINDEX_API_SECRET=...
 PODCASTINDEX_USER_AGENT=WarlockPod/0.1 (+https://example.com)
@@ -60,14 +61,17 @@ PODCASTINDEX_USER_AGENT=WarlockPod/0.1 (+https://example.com)
 APP_SIGNING_SECRET=change_me
 ```
 
+Keep `SUPABASE_SERVICE_ROLE_KEY` server-side only (never expose it to the browser).
+
 ---
 
-## 2) Tailwind theme - robin’s-egg palette
+## 2) Tailwind theme - robin's-egg palette
 
 `tailwind.config.ts`
 
 ```ts
 import type { Config } from 'tailwindcss'
+import lineClamp from '@tailwindcss/line-clamp'
 
 const config: Config = {
   content: [
@@ -97,7 +101,7 @@ const config: Config = {
       }
     },
   },
-  plugins: [],
+  plugins: [lineClamp],
 }
 export default config
 ```
@@ -164,6 +168,7 @@ create table if not exists public.episodes (
 );
 create index on public.episodes(podcast_id);
 create index on public.episodes(podcast_id, pub_date desc);
+create unique index episodes_podcast_guid on public.episodes(podcast_id, episode_guid);
 
 -- User subscriptions
 create table if not exists public.subscriptions (
@@ -441,6 +446,7 @@ export default function PlayerDock(){
   useEffect(() => {
     const int = setInterval(async () => {
       if (!audioRef.current || !episodeId) return
+      if (audioRef.current.paused) return
       const pos = Math.floor(audioRef.current.currentTime)
       const dur = Math.floor(audioRef.current.duration || 0)
       setPosition(pos)
@@ -500,7 +506,7 @@ export default function PlayerDock(){
         </select></label>
       </div>
 
-      <audio ref={audioRef} onTimeUpdate={onTimeUpdate} onEnded={next} preload="metadata" />
+      <audio ref={audioRef} onTimeUpdate={onTimeUpdate} onEnded={next} preload="metadata" crossOrigin="anonymous" />
     </div>
   )
 }
@@ -513,7 +519,7 @@ function format(sec: number){
 }
 ```
 
-This implements play, pause, next, prev, skip ±30s, volume, speed, and progress persistence. It saves to Supabase every 5 seconds and also persists in Zustand to survive refresh.
+This implements play, pause, next, prev, skip +/-30s, volume, speed, and progress persistence. It saves to Supabase every 5 seconds and also persists in Zustand to survive refresh.
 
 ---
 
@@ -544,11 +550,14 @@ import { createClient } from '@supabase/supabase-js'
 
 export async function GET(_req: NextRequest, { params }: { params: { feedId: string }}){
   const feedId = Number(params.feedId)
-  const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
   const feed = await getPodcastByFeedId(feedId)
 
   // Upsert podcast cache
-  const { data: podcastRow } = await supabase.from('podcasts').upsert({
+  const { data: podcastRow, error: podcastError } = await supabase.from('podcasts').upsert({
     feed_id: feed.id,
     title: feed.title,
     author: feed.author,
@@ -558,6 +567,8 @@ export async function GET(_req: NextRequest, { params }: { params: { feedId: str
     categories: feed.categories || {},
     link: feed.link
   }, { onConflict: 'feed_id' }).select().single()
+
+  if (podcastError) throw podcastError
 
   // Fetch episodes (limit for MVP)
   const items = await getEpisodesByFeedId(feed.id, 100)
@@ -575,12 +586,14 @@ export async function GET(_req: NextRequest, { params }: { params: { feedId: str
     season_number: it.season || null,
   }))
 
-  // Upsert episodes by guid+podcast
-  for (const ep of episodes){
-    await supabase.from('episodes').upsert(ep, { onConflict: 'podcast_id,episode_guid' })
-  }
+  const { data: episodeRows, error: episodeError } = await supabase
+    .from('episodes')
+    .upsert(episodes, { onConflict: 'podcast_id,episode_guid' })
+    .select()
 
-  return NextResponse.json({ podcast: podcastRow, episodes })
+  if (episodeError) throw episodeError
+
+  return NextResponse.json({ podcast: podcastRow, episodes: episodeRows })
 }
 ```
 
@@ -634,6 +647,7 @@ export default function PodcastPage({ params }: { params: { feedId: string }}){
   const [episodes, setEpisodes] = useState<any[]>([])
   const [filter, setFilter] = useState('')
   const [showHidden, setShowHidden] = useState(false)
+  const [isSubscribed, setSubscribed] = useState(false)
   const supabase = supabaseBrowser()
   const { play, enqueue } = usePlayer()
 
@@ -641,6 +655,13 @@ export default function PodcastPage({ params }: { params: { feedId: string }}){
     const res = await fetch(`/api/podcast/${params.feedId}`).then(r=>r.json())
     setPodcast(res.podcast); setEpisodes(res.episodes)
   })() }, [params.feedId])
+
+  useEffect(()=>{ (async()=>{
+    const { data: user } = await supabase.auth.getUser()
+    if (!user.user || !podcast?.id) return
+    const { data } = await supabase.from('subscriptions').select('podcast_id').eq('podcast_id', podcast.id)
+    setSubscribed((data || []).length > 0)
+  })() }, [podcast?.id])
 
   const visible = useMemo(()=>{
     return episodes.filter(ep => {
@@ -671,10 +692,15 @@ export default function PodcastPage({ params }: { params: { feedId: string }}){
     await supabase.from('episode_favorites').upsert({ user_id: user.user.id, episode_id: episodeId })
   }
 
-  const subscribe = async () => {
+  const toggleSubscribe = async () => {
     const { data: user } = await supabase.auth.getUser(); if (!user.user) return alert('Sign in first')
+    if (isSubscribed) {
+      await supabase.from('subscriptions').delete().eq('user_id', user.user.id).eq('podcast_id', podcast.id)
+      setSubscribed(false)
+      return
+    }
     await supabase.from('subscriptions').upsert({ user_id: user.user.id, podcast_id: podcast.id })
-    alert('Subscribed')
+    setSubscribed(true)
   }
 
   return (
@@ -687,7 +713,7 @@ export default function PodcastPage({ params }: { params: { feedId: string }}){
             <p className="text-slate-600">{podcast.author}</p>
             <p className="text-sm mt-2 line-clamp-3" dangerouslySetInnerHTML={{__html: podcast.description||''}} />
             <div className="mt-3 flex gap-2">
-              <button className="btn" onClick={subscribe}>Subscribe</button>
+              <button className="btn" onClick={toggleSubscribe}>{isSubscribed ? 'Unsubscribe' : 'Subscribe'}</button>
               <button className="btn-ghost" onClick={()=> enqueue(episodes.map((e:any)=>({ episodeId: e.id, title: e.title, audioUrl: e.audio_url, imageUrl: e.image_url })))}>Queue all</button>
             </div>
           </div>
@@ -726,7 +752,7 @@ export default function PodcastPage({ params }: { params: { feedId: string }}){
 }
 ```
 
-This page supports per-podcast episode search, subscribe, favorite, hide-show, and enqueuing episodes.
+This page supports per-podcast episode search, subscribe/unsubscribe, favorite, hide-show, and enqueuing episodes.
 
 ---
 
@@ -779,7 +805,7 @@ export default function Favorites(){
   const { play } = usePlayer()
   useEffect(()=>{ (async()=>{
     const { data: user } = await supabase.auth.getUser(); if(!user.user) return
-    const { data } = await supabase.from('episode_favorites').select('episodes(*), episodes(podcasts(*))')
+    const { data } = await supabase.from('episode_favorites').select('episodes(*, podcasts(*))')
     setRows(data || [])
   })() }, [])
 
@@ -816,7 +842,7 @@ export default function Favorites(){
 
 ## 12) Optional polish that pays off
 
-* **Keyboard shortcuts**: Space toggles play, J/L skip ±10, K play. Add a `useEffect` to listen for keydown in `PlayerDock`.
+* **Keyboard shortcuts**: Space toggles play, J/L skip +/-10, K play. Add a `useEffect` to listen for keydown in `PlayerDock`.
 * **Media Session API**: expose metadata and OS-level controls.
 * **Queue management**: add remove and reorder.
 * **OPML import**: accept a file and map feed URLs to Podcast Index `feedId`.
@@ -860,4 +886,4 @@ export default function Favorites(){
 * Full-text search across your cached episode table.
 * Keyboard shortcuts, Media Session API, and OPML import.
 
-You now have a functioning, desktop-first Warlock Pod that meets the MVP spec. Ship it, gather feedback, then add the social sauce.🪄
+You now have a functioning, desktop-first Warlock Pod that meets the MVP spec. Ship it, gather feedback, then add the social sauce.
