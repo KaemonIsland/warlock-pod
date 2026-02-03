@@ -197,6 +197,7 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
         <input
           className="border rounded-xl px-4 py-2 w-full"
           placeholder="Search episodes in this podcast"
+          aria-label="Search episodes in this podcast"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
         />
