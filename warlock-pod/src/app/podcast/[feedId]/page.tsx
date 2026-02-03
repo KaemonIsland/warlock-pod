@@ -163,16 +163,28 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
               </button>
               <button
                 className="btn-ghost"
-                onClick={() =>
-                  enqueue(
-                    episodes.map((e: any) => ({
-                      episodeId: e.id,
-                      title: e.title,
-                      audioUrl: e.audio_url,
-                      imageUrl: e.image_url,
-                    }))
-                  )
-                }
+                onClick={() => {
+                  const items = episodes.map((e: any) => ({
+                    episodeId: e.id,
+                    title: e.title,
+                    audioUrl: e.audio_url,
+                    imageUrl: e.image_url,
+                  }));
+
+                  // Avoid accidentally queuing a very large number of episodes.
+                  const LARGE_QUEUE_THRESHOLD = 50;
+                  if (
+                    items.length > LARGE_QUEUE_THRESHOLD &&
+                    typeof window !== "undefined" &&
+                    !window.confirm(
+                      `You are about to queue ${items.length} episodes. Do you want to continue?`
+                    )
+                  ) {
+                    return;
+                  }
+
+                  enqueue(items);
+                }}
               >
                 Queue all
               </button>
