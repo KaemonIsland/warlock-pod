@@ -28,6 +28,7 @@ export default function Home() {
         <input
           className="flex-1 border rounded-xl px-4 py-3"
           placeholder="Search podcasts"
+          aria-label="Search podcasts"
           value={q}
           onChange={(e) => setQ(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && search()}
