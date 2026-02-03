@@ -167,6 +167,7 @@ export default function PlayerDock() {
             step={0.01}
             value={volume}
             onChange={(e) => setVolume(Number(e.target.value))}
+            aria-label="Volume control"
           />
         </label>
         <label className="flex items-center gap-2 text-sm">
