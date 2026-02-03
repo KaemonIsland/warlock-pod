@@ -221,7 +221,7 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
             <div className="flex items-start gap-4">
               <img
                 src={ep.image_url}
-                alt="cover"
+                alt={ep.title}
                 className="w-16 h-16 rounded-xl object-cover"
               />
               <div className="flex-1 min-w-0">
