@@ -41,7 +41,7 @@ export default function Home() {
           <Link key={feed.id} href={`/podcast/${feed.id}`} className="card p-3">
             <img
               src={feed.image}
-              alt="cover"
+              alt={`${feed.title} podcast cover`}
               className="w-full h-40 object-cover rounded-xl"
             />
             <div className="mt-3 font-medium line-clamp-2">{feed.title}</div>
