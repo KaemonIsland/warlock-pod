@@ -147,7 +147,7 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
         <header className="flex flex-col sm:flex-row gap-4 mb-6">
           <img
             src={podcast.image_url}
-            alt="cover"
+            alt={`${podcast.title} podcast cover`}
             className="w-32 h-32 rounded-xl object-cover"
           />
           <div className="flex-1">
