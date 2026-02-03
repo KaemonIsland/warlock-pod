@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseClient";
 import { usePlayer } from "@/store/player";
 
 export default function Favorites() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = supabaseBrowser();
   const [rows, setRows] = useState<any[]>([]);
   const [signedIn, setSignedIn] = useState(true);
   const { play } = usePlayer();
@@ -22,7 +22,7 @@ export default function Favorites() {
         .select("episodes(*, podcasts(*))");
       setRows(data || []);
     })();
-  }, [supabase]);
+  }, []);
 
   const playEpisode = async (episode: any) => {
     const { data: user } = await supabase.auth.getUser();

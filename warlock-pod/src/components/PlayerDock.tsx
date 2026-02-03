@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePlayer } from "@/store/player";
 import {
   Play,
@@ -16,7 +16,7 @@ import { supabaseBrowser } from "@/lib/supabaseClient";
 export default function PlayerDock() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setPlaying] = useState(false);
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = supabaseBrowser();
   const {
     episodeId,
     title,
@@ -71,7 +71,7 @@ export default function PlayerDock() {
       }
     }, 15000);
     return () => clearInterval(int);
-  }, [episodeId, setDuration, setPosition, supabase]);
+  }, [episodeId, setDuration, setPosition]);
 
   const onTimeUpdate = () => {
     const t = Math.floor(audioRef.current?.currentTime || 0);

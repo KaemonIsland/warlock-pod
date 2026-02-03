@@ -13,7 +13,7 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = supabaseBrowser();
   const { play, enqueue } = usePlayer();
 
   useEffect(() => {
@@ -55,7 +55,7 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
         setIsSubscribed(!!sub);
       }
     })();
-  }, [podcast?.id, supabase]);
+  }, [podcast?.id]);
 
   const hiddenSet = useMemo(() => new Set(hiddenIds), [hiddenIds]);
   const favoriteSet = useMemo(() => new Set(favoriteIds), [favoriteIds]);
