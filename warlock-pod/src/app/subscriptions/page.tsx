@@ -2,24 +2,20 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabaseClient";
 
 export default function Subs() {
-  const supabase = supabaseBrowser();
   const [rows, setRows] = useState<any[]>([]);
   const [signedIn, setSignedIn] = useState(true);
 
   useEffect(() => {
     (async () => {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) {
+      const res = await fetch("/api/subscriptions");
+      if (res.status === 401) {
         setSignedIn(false);
         return;
       }
-      const { data } = await supabase
-        .from("subscriptions")
-        .select("podcasts(*)");
-      setRows(data || []);
+      const data = await res.json();
+      setRows(data.podcasts || []);
     })();
   }, []);
 
@@ -36,22 +32,22 @@ export default function Subs() {
     <div className="max-w-4xl mx-auto">
       <h1 className="text-2xl font-bold mb-4">Your subscriptions</h1>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {rows.map((r: any) => (
+        {rows.map((podcast: any) => (
           <Link
-            key={r.podcasts.id}
-            href={`/podcast/${r.podcasts.feed_id}`}
+            key={podcast.id}
+            href={`/podcast/${podcast.feed_id}`}
             className="card p-3"
           >
             <img
-              src={r.podcasts.image_url}
-              alt={`${r.podcasts.title} podcast cover`}
+              src={podcast.image_url}
+              alt="cover"
               className="w-full h-40 object-cover rounded-xl"
             />
             <div className="mt-2 font-medium line-clamp-2">
-              {r.podcasts.title}
+              {podcast.title}
             </div>
             <div className="text-xs text-slate-500 line-clamp-1">
-              {r.podcasts.author}
+              {podcast.author}
             </div>
           </Link>
         ))}

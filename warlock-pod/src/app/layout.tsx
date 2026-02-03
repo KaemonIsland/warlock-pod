@@ -3,6 +3,7 @@ import Link from "next/link";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import PlayerDock from "@/components/PlayerDock";
+import Providers from "@/app/providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,30 +30,32 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <main className="p-4 lg:p-8">
-            <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
-              <Link href="/" className="text-xl font-semibold">
-                Warlock Pod
-              </Link>
-              <nav className="flex flex-wrap gap-2 text-sm">
-                <Link className="btn-ghost" href="/subscriptions">
-                  Subscriptions
+        <Providers>
+          <div className="min-h-screen grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <main className="p-4 lg:p-8">
+              <header className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <Link href="/" className="text-xl font-semibold">
+                  Warlock Pod
                 </Link>
-                <Link className="btn-ghost" href="/favorites">
-                  Favorites
-                </Link>
-                <Link className="btn-ghost" href="/login">
-                  Login
-                </Link>
-              </nav>
-            </header>
-            {children}
-          </main>
-          <aside className="border-t lg:border-l border-slate-200 bg-slate-50 p-4 lg:sticky lg:top-0 lg:h-[100svh]">
-            <PlayerDock />
-          </aside>
-        </div>
+                <nav className="flex flex-wrap gap-2 text-sm">
+                  <Link className="btn-ghost" href="/subscriptions">
+                    Subscriptions
+                  </Link>
+                  <Link className="btn-ghost" href="/favorites">
+                    Favorites
+                  </Link>
+                  <Link className="btn-ghost" href="/login">
+                    Login
+                  </Link>
+                </nav>
+              </header>
+              {children}
+            </main>
+            <aside className="border-t lg:border-l border-slate-200 bg-slate-50 p-4 lg:sticky lg:top-0 lg:h-[100svh]">
+              <PlayerDock />
+            </aside>
+          </div>
+        </Providers>
       </body>
     </html>
   );

@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePlayer } from "@/store/player";
-import { supabaseBrowser } from "@/lib/supabaseClient";
 import DOMPurify from "isomorphic-dompurify";
 
 export default function PodcastPage({ params }: { params: { feedId: string } }) {
@@ -14,7 +13,6 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
   const [favoriteIds, setFavoriteIds] = useState<number[]>([]);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [loading, setLoading] = useState(true);
-  const supabase = supabaseBrowser();
   const { play, enqueue } = usePlayer();
 
   useEffect(() => {
@@ -35,25 +33,24 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
   }, [params.feedId]);
 
   useEffect(() => {
+    if (!podcast?.id) return;
     (async () => {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) return;
-      const [hid, fav] = await Promise.all([
-        supabase
-          .from("episode_visibility")
-          .select("episode_id")
-          .eq("is_hidden", true),
-        supabase.from("episode_favorites").select("episode_id"),
+      const [hiddenRes, favRes, subRes] = await Promise.all([
+        fetch(`/api/visibility?podcastId=${podcast.id}`),
+        fetch(`/api/favorites?podcastId=${podcast.id}`),
+        fetch(`/api/subscriptions?podcastId=${podcast.id}`),
       ]);
-      setHiddenIds((hid.data || []).map((h) => h.episode_id));
-      setFavoriteIds((fav.data || []).map((f) => f.episode_id));
-      if (podcast?.id) {
-        const { data: sub } = await supabase
-          .from("subscriptions")
-          .select("podcast_id")
-          .eq("podcast_id", podcast.id)
-          .maybeSingle();
-        setIsSubscribed(!!sub);
+      if (hiddenRes.ok) {
+        const data = await hiddenRes.json();
+        setHiddenIds(data.hiddenIds || []);
+      }
+      if (favRes.ok) {
+        const data = await favRes.json();
+        setFavoriteIds(data.favoriteIds || []);
+      }
+      if (subRes.ok) {
+        const data = await subRes.json();
+        setIsSubscribed(!!data.subscribed);
       }
     })();
   }, [podcast?.id]);
@@ -72,33 +69,26 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
   }, [episodes, filter, showHidden, hiddenSet]);
 
   const toggleHide = async (episodeId: number) => {
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) return alert("Sign in first");
     const isHidden = hiddenSet.has(episodeId);
-    await supabase.from("episode_visibility").upsert({
-      user_id: user.user.id,
-      episode_id: episodeId,
-      is_hidden: !isHidden,
+    const res = await fetch("/api/visibility", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ episodeId, isHidden: !isHidden }),
     });
+    if (res.status === 401) return alert("Sign in first");
     setHiddenIds((prev) =>
       isHidden ? prev.filter((id) => id !== episodeId) : [...prev, episodeId]
     );
   };
 
   const toggleFavorite = async (episodeId: number) => {
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) return alert("Sign in first");
     const isFav = favoriteSet.has(episodeId);
-    if (isFav) {
-      await supabase
-        .from("episode_favorites")
-        .delete()
-        .eq("episode_id", episodeId);
-    } else {
-      await supabase
-        .from("episode_favorites")
-        .upsert({ user_id: user.user.id, episode_id: episodeId });
-    }
+    const res = await fetch("/api/favorites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ episodeId, favorite: !isFav }),
+    });
+    if (res.status === 401) return alert("Sign in first");
     setFavoriteIds((prev) =>
       isFav ? prev.filter((id) => id !== episodeId) : [...prev, episodeId]
     );
@@ -106,31 +96,21 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
 
   const toggleSubscribe = async () => {
     if (!podcast?.id) return;
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) return alert("Sign in first");
-    if (isSubscribed) {
-      await supabase
-        .from("subscriptions")
-        .delete()
-        .eq("podcast_id", podcast.id);
-    } else {
-      await supabase
-        .from("subscriptions")
-        .upsert({ user_id: user.user.id, podcast_id: podcast.id });
-    }
+    const res = await fetch("/api/subscriptions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ podcastId: podcast.id, subscribe: !isSubscribed }),
+    });
+    if (res.status === 401) return alert("Sign in first");
     setIsSubscribed((prev) => !prev);
   };
 
   const playEpisode = async (ep: any) => {
-    const { data: user } = await supabase.auth.getUser();
     let startPosition = 0;
-    if (user.user) {
-      const { data: progress } = await supabase
-        .from("episode_progress")
-        .select("position_seconds")
-        .eq("episode_id", ep.id)
-        .maybeSingle();
-      startPosition = progress?.position_seconds || 0;
+    const progressRes = await fetch(`/api/progress?episodeId=${ep.id}`);
+    if (progressRes.ok) {
+      const data = await progressRes.json();
+      startPosition = data?.position_seconds || 0;
     }
     play({
       episodeId: ep.id,

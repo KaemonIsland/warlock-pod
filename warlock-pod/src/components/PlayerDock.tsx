@@ -11,12 +11,10 @@ import {
   Rewind,
   Volume2,
 } from "lucide-react";
-import { supabaseBrowser } from "@/lib/supabaseClient";
 
 export default function PlayerDock() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isPlaying, setPlaying] = useState(false);
-  const supabase = supabaseBrowser();
   const {
     episodeId,
     title,
@@ -60,16 +58,16 @@ export default function PlayerDock() {
       const dur = Math.floor(audioRef.current.duration || 0);
       setPosition(pos);
       setDuration(dur);
-      const { data: user } = await supabase.auth.getUser();
-      if (user.user) {
-        await supabase.from("episode_progress").upsert({
-          user_id: user.user.id,
-          episode_id: episodeId,
-          position_seconds: pos,
-          duration_seconds: dur,
-        });
-      }
-    }, 15000);
+      await fetch("/api/progress", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          episodeId,
+          positionSeconds: pos,
+          durationSeconds: dur,
+        }),
+      });
+    }, 5000);
     return () => clearInterval(int);
   }, [episodeId, setDuration, setPosition]);
 
