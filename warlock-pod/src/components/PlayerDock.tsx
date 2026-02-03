@@ -110,7 +110,7 @@ export default function PlayerDock() {
       <div className="flex items-center gap-3">
         <img
           src={imageUrl || "/logo.svg"}
-          alt="cover"
+          alt={title || "Podcast cover"}
           className="w-16 h-16 rounded-xl object-cover"
         />
         <div className="flex-1">
