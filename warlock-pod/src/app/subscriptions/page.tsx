@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabaseClient";
 
 export default function Subs() {
-  const supabase = useMemo(() => supabaseBrowser(), []);
+  const supabase = supabaseBrowser();
   const [rows, setRows] = useState<any[]>([]);
   const [signedIn, setSignedIn] = useState(true);
 
@@ -21,7 +21,7 @@ export default function Subs() {
         .select("podcasts(*)");
       setRows(data || []);
     })();
-  }, [supabase]);
+  }, []);
 
   if (!signedIn) {
     return (
