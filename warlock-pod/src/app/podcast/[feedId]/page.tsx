@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePlayer } from "@/store/player";
 import { supabaseBrowser } from "@/lib/supabaseClient";
+import DOMPurify from "isomorphic-dompurify";
 
 export default function PodcastPage({ params }: { params: { feedId: string } }) {
   const [podcast, setPodcast] = useState<any>(null);
@@ -155,7 +156,7 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
             <p className="text-slate-600">{podcast.author}</p>
             <p
               className="text-sm mt-2 line-clamp-3"
-              dangerouslySetInnerHTML={{ __html: podcast.description || "" }}
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(podcast.description || "") }}
             />
             <div className="mt-3 flex flex-wrap gap-2">
               <button className="btn" onClick={toggleSubscribe}>
@@ -252,7 +253,7 @@ export default function PodcastPage({ params }: { params: { feedId: string } }) 
                 </div>
                 <p
                   className="text-sm text-slate-600 line-clamp-2"
-                  dangerouslySetInnerHTML={{ __html: ep.description || "" }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ep.description || "") }}
                 />
               </div>
             </div>
