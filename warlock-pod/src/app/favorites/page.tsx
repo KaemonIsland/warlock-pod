@@ -62,7 +62,7 @@ export default function Favorites() {
           <li key={r.episodes.id} className="card p-4 flex items-center gap-4">
             <img
               src={r.episodes.image_url}
-              alt="cover"
+              alt={`${r.episodes.title} episode cover`}
               className="w-16 h-16 rounded-xl"
             />
             <div className="flex-1 min-w-0">
