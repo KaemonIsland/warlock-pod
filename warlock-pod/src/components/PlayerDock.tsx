@@ -42,7 +42,7 @@ export default function PlayerDock() {
       .play()
       .then(() => setPlaying(true))
       .catch(() => setPlaying(false));
-  }, [audioUrl, position]);
+  }, [audioUrl]);
 
   useEffect(() => {
     if (audioRef.current) audioRef.current.playbackRate = speed;
