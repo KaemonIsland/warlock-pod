@@ -44,7 +44,7 @@ export default function Subs() {
           >
             <img
               src={r.podcasts.image_url}
-              alt="cover"
+              alt={`${r.podcasts.title} podcast cover`}
               className="w-full h-40 object-cover rounded-xl"
             />
             <div className="mt-2 font-medium line-clamp-2">
