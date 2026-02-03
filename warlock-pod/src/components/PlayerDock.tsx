@@ -69,7 +69,7 @@ export default function PlayerDock() {
           duration_seconds: dur,
         });
       }
-    }, 5000);
+    }, 15000);
     return () => clearInterval(int);
   }, [episodeId, setDuration, setPosition, supabase]);
 
